@@ -1171,3 +1171,113 @@ data <- rdd_data(d$Y,
 srdd_mod <- rdd_reg_lm(rdd_object = data, 
                        slope = "same")
 srdd_mod
+------------------------------------------------------------------------------------
+  
+library(AER)
+library(dynlm)
+library(forecast)
+library(readxl)
+library(stargazer)
+library(scales)
+library(quantmod)
+library(urca)
+
+# format date column
+USMacroSWQ$...1 <- as.yearqtr(USMacroSWQ$...1, format = "%Y:0%q")
+
+# adjust column names
+colnames(USMacroSWQ) <- c("Date", "GDP96", "JAPAN_IP", "PCECTPI", "GS10", "GS1", "TB3MS","UNRATE", "EXUSUK", "CPIAUCSL")
+
+# GDP series as xts object
+GDP <- xts(USMacroSWQ$GDP96, USMacroSWQ$Date)["1960::2013"]
+
+# GDP growth series as xts object
+GDPGrowth <- xts(400 * log(GDP/lag(GDP)))
+
+# plot 
+# reproduce Figure 14.1 (a) of the book
+plot(log(as.zoo(GDP)),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Logarithm",
+     xlab = "Date",
+     main = "U.S. Quarterly Real GDP")
+
+# reproduce Figure 14.1 (b) of the book
+plot(as.zoo(GDPGrowth),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Logarithm",
+     xlab = "Date",
+     main = "U.S. Real GDP Growth Rates")
+
+# compute Logarithms, annual growth rates and 1st lag of growth rates
+quants <- function(series) {
+  s <- series
+  return(
+    data.frame("Level" = s,
+               "Logarithm" = log(s),
+               "AnnualGrowthRate" = 400 * log(s/lag(s)),
+               "1stLagAnnualGrowthRate" = lag(400 * log(s/lag(s))))
+  )
+}
+
+# obtain a data.frame with level, logarithm, annual growth rate and its 1st lag of GDP
+quants(GDP["2011-07::2013-01"])
+
+# compute the sample autocovariance 
+acf(na.omit(GDPGrowth), lag.max = 4, plot = F)
+
+# define series as xts objects 
+USUnemp <- xts(USMacroSWQ$UNRATE, USMacroSWQ$Date)["1960::2013"]
+
+DollarPoundFX <- xts(USMacroSWQ$EXUSUK, USMacroSWQ$Date)["1960::2013"]
+
+JPIndProd <- xts(log(USMacroSWQ$JAPAN_IP),USMacroSWQ$Date)["1960::2013"]
+
+# attach NYSESW data
+data("NYSESW")
+
+NYSESW <- xts(Delt(NYSESW))
+
+#divide plotting area into 2x2 matrix
+par(mfrow = c(2,2))
+
+# plot the series 
+plot(as.zoo(USUnemp),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent",
+     xlab = "Date",
+     main = "US Unemployment Rate",
+     cex.main = 1)
+
+plot(as.zoo(DollarPoundFX),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Dollar per pound",
+     xlab = "Date",
+     main = "U.S. Dollar / B. Pound Exchange Rate",
+     cex.main = 1)
+
+plot(as.zoo(JPIndProd),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Logarithm",
+     xlab = "Date",
+     main = "Japanese Industrial Production",
+     cex.main = 1)
+
+plot(as.zoo(NYSESW),
+     col = "steelblue",
+     lwd = 2,
+     ylab = "Percent per Day",
+     xlab = "Date",
+     main = "New York Stock Exchange Composite Index",
+     cex.main = 1)
+
+# compute sample autocorrelation for the NYSESW series
+acf(na.omit(NYSESW), plot = F, lag.max = 10)
+
+# plot sample autocorrelation for the NYSESW series
+acf(na.omit(NYSESW), main = "Sample Autocorrelation for NYSESW Data")
