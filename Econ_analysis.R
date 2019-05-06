@@ -1280,6 +1280,7 @@ plot(as.zoo(NYSESW),
 acf(na.omit(NYSESW), plot = F, lag.max = 10)
 
 # plot sample autocorrelation for the NYSESW series
+<<<<<<< HEAD
 acf(na.omit(NYSESW), main = "Sample Autocorrelation for NYSESW Data")
 
 
@@ -1451,3 +1452,6 @@ GDPGR_ADL21 <- dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts) + L(GDPGrowth_ts, 2) + L(TSp
                      start = c(1962, 1), end = c(2012, 4))
 
 coeftest(GDPGR_ADL21, vcov. = sandwich)
+=======
+acf(na.omit(NYSESW), main = "Sample Autocorrelation for NYSESW Data")
+>>>>>>> origin/master
