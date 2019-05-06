@@ -186,7 +186,7 @@ var(fit[, 1])
 var(fit[,2])
 
 # divide plotting area as 1-by-2 array
-par(mfrow = c(1, 2))
+par(mfrow = c(1, 1))
 
 # plot histograms of beta_0 estimates
 hist(fit[, 1],
@@ -1377,4 +1377,77 @@ stargazer(SR_AR1, SR_AR2, SR_AR4,
           se = rob_se,
           omit.stat = "rsq") 
 
+# Additional Predictors and the ADL Model
 
+# 3-months Treasury bills interest rate 
+TB3MS <- xts(USMacroSWQ$TB3MS, USMacroSWQ$Date)["1960::2012"]
+
+# 10 - years Treasury bonds interest rate
+TB10YS <- xts(USMacroSWQ$GS10, USMacroSWQ$Date)["1960::2012"]
+
+# term spread
+TSpread <- TB10YS - TB3MS
+
+# reproduce 
+
+plot(merge(as.zoo(TB3MS), as.zoo(TB10YS)),
+     plot.type = "single",
+     col = c("darkred", "steelblue"),
+     lwd = 2,
+     xlab = "Date",
+     ylab = "Percent per annum",
+     main = "Interest Rates")
+
+# define function that transform years to class "yearqtr"
+YToYQTR <- function(years){
+  return(
+    sort(as.yearqtr(sapply(years,paste, c("Q1", "Q2", "Q3", "Q4"))))
+  )
+}
+
+# recessions
+recessions <- YToYQTR(c(1961:1962, 1970, 1974:1975, 1980:1982, 1990:1991, 2001, 2007:2008))
+
+
+# add color shading for recessions 
+xblocks(time(as.zoo(TB3MS)),
+        c(time(TB3MS) %in% recessions),
+        col = alpha("steelblue", alpha = 0.3))
+
+# add legend 
+legend("topright",
+       legend = c("TB3MS", "TB10YS"), 
+       col = c("darkred", "steelblue"),
+       lwd = c(2,2))
+
+# reproduce Figure 14.2 (b) of the book
+plot(as.zoo(TSpread), 
+     col = "steelblue",
+     lwd = 2,
+     xlab = "Date",
+     ylab = "Percent per annum",
+     main = "Term Spread")
+
+# add color shading for recessions
+xblocks(time(as.zoo(TB3MS)), 
+        c(time(TB3MS) %in% recessions), 
+        col = alpha("steelblue", alpha = 0.3))
+
+# convert growth and spread series to ts objects
+GDPGrowth_ts <- ts(GDPGrowth,
+                   start = c(1960,1),
+                   end = c(2013,4),
+                   frequency = 4)
+TSpread_ts <- ts(TSpread,
+                 start = c(1960,1),
+                 end = c(2012,4),
+                 frequency = 4)
+
+# join both ts objects
+ADLdata <- ts.union(GDPGrowth_ts, TSpread_ts)
+
+# estimate the ADL(2,1) model of GDP growth
+GDPGR_ADL21 <- dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts) + L(GDPGrowth_ts, 2) + L(TSpread_ts), 
+                     start = c(1962, 1), end = c(2012, 4))
+
+coeftest(GDPGR_ADL21, vcov. = sandwich)
