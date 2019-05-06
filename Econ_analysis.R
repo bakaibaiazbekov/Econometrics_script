@@ -1452,6 +1452,89 @@ GDPGR_ADL21 <- dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts) + L(GDPGrowth_ts, 2) + L(TSp
                      start = c(1962, 1), end = c(2012, 4))
 
 coeftest(GDPGR_ADL21, vcov. = sandwich)
-=======
-acf(na.omit(NYSESW), main = "Sample Autocorrelation for NYSESW Data")
->>>>>>> origin/master
+
+# 2012:Q3 / 2012:Q4 data on GDP growth and term spread
+subset <- window(ADLdata, c(2012,3), c(2012,4))
+
+# ADL(2,1) GDP growth forecast for 2013:Q1
+ADL21_forecast <- coef(GDPGR_ADL21) %*% c(1, subset[2,1], subset[1,1], subset[2,2])
+
+# compute the forecast error
+window(GDPGrowth_ts, c(2013,1), c(2013,1)) - ADL21_forecast
+
+# What if we add more information to model 
+
+# estimate the ADL(2,2) model of GDP growth
+GDPGR_ADL22 <- dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts) + L(GDPGrowth_ts, 2) 
+                     + L(TSpread_ts) + L(TSpread_ts, 2), 
+                     start = c(1962, 1), end = c(2012, 4))
+
+coeftest(GDPGR_ADL22, vcov. = sandwich)
+
+# ADL(2,2) GDP growth forecast for 2013:Q1
+ADL22_forecast <- coef(GDPGR_ADL22) %*% c(1, subset[2, 1], subset[1, 1], subset[2, 2], subset[1, 2])
+
+# compute the forecast error
+window(GDPGrowth_ts, c(2013, 1), c(2013, 1)) - ADL22_forecast
+
+# compare adj. R2
+c("Adj.R2 AR(2)" = summary(GDPGR_AR2)$r.squared,
+  "Adj.R2 ADL(2,1)" = summary(GDPGR_ADL21)$r.squared,
+  "Adj.R2 ADL(2,2)" = summary(GDPGR_ADL22)$r.squared)
+
+----------------------------------------------------------------------------------------
+
+# simulate the time series
+Y <- arima.sim(list(order = c(2,0,0), ar = c(0.2, 0.2)), n=200)
+
+# estimate an AR(2) model using 'arima()' 
+model <- arima(Y, order = c(2,0,0))
+
+# compute points forecasts and prediction intervals for the next 25 periods
+fc <- forecast(model, h=25, level = seq(5, 99, 10))
+
+# plot a fan chart
+plot(fc,
+     main = "Forecast Fan Chart for AR(2) Model of Simulated Data",
+     showgap = F, 
+     fcol = "red",
+     flty = 2)
+
+# Compute The Bayes Information criterion(BIC) for AR model objects of class "dynlm"
+BIC <- function(model) {
+  ssr <- sum(model$residuals^2)
+  t <- length(model$residuals)
+  npar <- length(model$coef)
+  
+  return(
+    round(c("p" = npar -1,
+            "BIC" = log(ssr/t) + npar*log(t)/t,
+            "R2" = summary(model)$r.squared), 4)
+  )
+}  
+
+# apply the BIC() to an intercept-only model of GDP growth 
+BIC(dynlm(ts(GDPGR_level) ~ 1))
+
+
+# loop BIC over models of different orders
+order <- 1:6
+
+BICs <- sapply(order, function(x)
+  "AR" = BIC(dynlm(ts(GDPGR_level) ~ L(ts(GDPGR_level), 1:x))))
+
+# select the AR model with the smallest BIC
+BICs[,which.min(BICs[2,])]
+
+
+# loop 'BIC()' over multiple ADL models 
+order <- 1:12
+
+BICs <- sapply(order, function(x) 
+  BIC(dynlm(GDPGrowth_ts ~ L(GDPGrowth_ts, 1:x) + L(TSpread_ts, 1:x), 
+            start = c(1962, 1), end = c(2012, 4))))
+
+BICs
+
+# select the ADL model with the smallest BIC
+BICs[, which.min(BICs[2, ])]
